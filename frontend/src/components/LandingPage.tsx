@@ -27,7 +27,7 @@ function MapInitializer() {
     const timer = setTimeout(() => {
       map.invalidateSize();
       window.dispatchEvent(new Event('resize'));
-    }, 200);
+    }, 100);
 
     return () => {
       map.removeLayer(tiles);
@@ -40,7 +40,7 @@ function MapInitializer() {
 function ChangeView({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, 14);
+    map.flyTo(center, 14, { duration: 1.5 });
   }, [center, map]);
   return null;
 }
@@ -211,8 +211,8 @@ export default function LandingPage({ hubs, beacons, geofences, blackoutActive, 
               touchZoom={true}
               dragging={true}
               attributionControl={false}
-              className={`w-full h-full ${blackoutActive ? 'blackout-grayscale' : ''}`}
-              style={{ zIndex: 1, pointerEvents: 'auto', height: '100%', width: '100%', minHeight: '400px' }}
+              className={`w-full ${blackoutActive ? 'blackout-grayscale' : ''}`}
+              style={{ height: '420px', width: '100%', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}
             >
               <MapInitializer />
               {activeCitizenCoords && (
