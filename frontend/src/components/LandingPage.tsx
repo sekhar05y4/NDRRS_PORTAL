@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, PhoneCall, AlertTriangle, CloudRain, Wind, Layers, Info } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Circle, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { fetchLiveWeather, WeatherData } from '../services/weather';
 import CitizenSOS from '../pages/citizen/CitizenSOS';
@@ -45,6 +45,15 @@ function ChangeView({ center }: { center: [number, number] }) {
   return null;
 }
 
+function MapEventCapture({ onMapClick }: { onMapClick: (lat: number, lon: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
+}
+
 const createPulsatingMarker = () => L.divIcon({
   className: 'pulsating-citizen-gps',
   html: `
@@ -78,6 +87,12 @@ const createCitizenIcon = (status: string) => {
 export default function LandingPage({ hubs, beacons, geofences, blackoutActive, onSubmitSOS }: LandingPageProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [activeCitizenCoords, setActiveCitizenCoords] = useState<[number, number] | null>(null);
+  const [externalLocationOverride, setExternalLocationOverride] = useState<{lat: number, lon: number, timestamp: number} | undefined>(undefined);
+
+  const handleMapLocationUpdate = (lat: number, lon: number) => {
+    setActiveCitizenCoords([lat, lon]);
+    setExternalLocationOverride({ lat, lon, timestamp: Date.now() });
+  };
 
   useEffect(() => {
     if (activeCitizenCoords) {
@@ -215,11 +230,24 @@ export default function LandingPage({ hubs, beacons, geofences, blackoutActive, 
               style={{ height: '420px', width: '100%', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}
             >
               <MapInitializer />
+              <MapEventCapture onMapClick={handleMapLocationUpdate} />
+
               {activeCitizenCoords && (
                 <>
                   <ChangeView center={activeCitizenCoords} />
-                  <Marker position={activeCitizenCoords} icon={createPulsatingMarker()}>
-                    <Tooltip permanent direction="top">Your Live GPS Lock</Tooltip>
+                  <Marker 
+                    position={activeCitizenCoords} 
+                    icon={createPulsatingMarker()}
+                    draggable={true}
+                    eventHandlers={{
+                      dragend: (e) => {
+                        const marker = e.target;
+                        const position = marker.getLatLng();
+                        handleMapLocationUpdate(position.lat, position.lng);
+                      }
+                    }}
+                  >
+                    <Tooltip permanent direction="top">Your Live GPS Lock (Drag to move)</Tooltip>
                   </Marker>
                 </>
               )}
@@ -277,6 +305,7 @@ export default function LandingPage({ hubs, beacons, geofences, blackoutActive, 
             myBeacons={beacons.filter(b => b.id.startsWith('beacon_') || b.id.startsWith('offline_'))} 
             blackoutActive={blackoutActive}
             onLocationChange={(la, lo) => setActiveCitizenCoords([parseFloat(la), parseFloat(lo)])}
+            externalLocationOverride={externalLocationOverride}
           />
         </div>
 

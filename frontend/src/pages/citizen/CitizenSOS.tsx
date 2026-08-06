@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Send, ClipboardCheck, Compass, Info, Search, MapPin, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
+import { Send, ClipboardCheck, Compass, Info, Search, MapPin, Wifi, WifiOff, AlertTriangle, Loader } from 'lucide-react';
 import { useDexieDB } from '../../hooks/useDexieDB';
 import { socket } from '../../services/socket';
 
@@ -9,9 +9,10 @@ interface CitizenSOSProps {
   myBeacons: any[];
   blackoutActive: boolean;
   onLocationChange?: (lat: string, lon: string) => void;
+  externalLocationOverride?: { lat: number; lon: number; timestamp: number };
 }
 
-export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onLocationChange }: CitizenSOSProps) {
+export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onLocationChange, externalLocationOverride }: CitizenSOSProps) {
   // Coordinates & Location States
   const [lat, setLat] = useState('17.5500');
   const [lon, setLon] = useState('78.4650');
@@ -42,10 +43,21 @@ export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onL
 
   const { saveOfflineSOS } = useDexieDB();
 
+  const [toastError, setToastError] = useState<string | null>(null);
+
   // Bubble coordinates up when lat/lon change
   useEffect(() => {
     onLocationChange?.(lat, lon);
   }, [lat, lon, onLocationChange]);
+
+  // Handle external map clicks or marker drags from LandingPage
+  useEffect(() => {
+    if (externalLocationOverride) {
+      setLat(externalLocationOverride.lat.toFixed(4));
+      setLon(externalLocationOverride.lon.toFixed(4));
+      triggerReverseGeocode(externalLocationOverride.lat, externalLocationOverride.lon);
+    }
+  }, [externalLocationOverride]);
 
   // Search autocomplete handler
   useEffect(() => {
@@ -104,7 +116,8 @@ export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onL
 
   const handleFetchCoords = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      setToastError("Geolocation is not supported by your browser.");
+      setTimeout(() => setToastError(null), 5000);
       return;
     }
 
@@ -121,7 +134,10 @@ export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onL
         await triggerReverseGeocode(targetLat, targetLon);
       },
       (err) => {
-        console.warn("Location permission denied or unavailable. Falling back to default corridor.", err);
+        console.warn("Location permission denied", err);
+        setToastError("GPS lock failed. Please ensure location permissions are enabled.");
+        setTimeout(() => setToastError(null), 5000);
+        
         setLat('17.5512');
         setLon('78.4634');
         setGpsAccuracy('150');
@@ -174,6 +190,13 @@ export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onL
           </span>
         </div>
 
+        {toastError && (
+          <div className="mb-4 bg-red-500/10 border border-red-500/50 text-red-400 p-2.5 rounded text-[11px] font-bold flex items-center gap-2 animate-pulse">
+            <AlertTriangle size={14} />
+            {toastError}
+          </div>
+        )}
+
         {/* Location Search Autocomplete */}
         <div className="relative flex flex-col gap-1 z-50">
           <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -189,7 +212,7 @@ export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onL
             />
             <Search size={14} className="absolute left-3 top-2.5 text-slate-500" />
             {searchLoading && (
-              <span className="absolute right-3 top-2 text-[10px] text-slate-500">Searching...</span>
+              <Loader size={14} className="absolute right-3 top-2.5 text-slate-500 animate-spin" />
             )}
           </div>
 
