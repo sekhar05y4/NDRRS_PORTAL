@@ -446,7 +446,7 @@ export default function App() {
   };
 
   return (
-    <BrowserRouter basename={(import.meta as any).env?.BASE_URL || '/NDRRS-Disaster-Platform/'}>
+    <BrowserRouter basename={(import.meta as any).env?.BASE_URL || '/NDRRS_PORTAL/'}>
       <Routes>
         
         {/* 1. Public Portal Root Path */}
