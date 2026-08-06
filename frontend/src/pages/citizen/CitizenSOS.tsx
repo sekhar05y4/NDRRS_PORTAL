@@ -40,96 +40,12 @@ export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onL
   const [disabledCount, setDisabledCount] = useState('0');
   const [pregnantCount, setPregnantCount] = useState('0');
 
-  // 1-Tap SOS state
-  const [oneTapStatus, setOneTapStatus] = useState<string | null>(null);
   const { saveOfflineSOS } = useDexieDB();
 
   // Bubble coordinates up when lat/lon change
   useEffect(() => {
     onLocationChange?.(lat, lon);
   }, [lat, lon, onLocationChange]);
-
-  const handleOneTapSOS = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    try {
-      if (!navigator.geolocation) {
-        alert("Geolocation is not supported by your browser.");
-        return;
-      }
-
-      // Try to get battery level
-      let batteryLevel = 'Unknown';
-      try {
-        if ((navigator as any).getBattery) {
-          const battery = await (navigator as any).getBattery();
-          batteryLevel = `${Math.round(battery.level * 100)}%`;
-        }
-      } catch (e) {
-        console.warn("Battery API not supported");
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const targetLat = pos.coords.latitude;
-          const targetLon = pos.coords.longitude;
-          
-          let localArea = 'Unknown Location';
-          let parsedDistrict = 'AUTO_DETECT';
-          let parsedState = 'AUTO_DETECT';
-          try {
-            const geoRes = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${targetLat}&lon=${targetLon}`, {
-              headers: { 'User-Agent': 'NDRRS-Disaster-Platform' }
-            });
-            const addr = (geoRes.data as any).address || {};
-            localArea = addr.village || addr.suburb || addr.city_district || addr.county || addr.state || 'Unknown';
-            parsedDistrict = addr.county || addr.district || addr.city_district || addr.suburb || 'Medchal-Malkajgiri';
-            parsedState = addr.state || 'Telangana';
-          } catch (e) {
-            console.warn("OneTap SOS reverse geocode failed", e);
-          }
-
-          const nowStr = new Date().toISOString();
-          const userName = localStorage.getItem('userName') || 'Citizen';
-          const userPhone = localStorage.getItem('userPhone') || 'Unknown';
-
-          const sosData = {
-            id: `SOS-${Date.now()}`,
-            name: userName,
-            lat: targetLat,
-            lng: targetLon,
-            address: localArea || "Maisammaguda Corridor",
-            district: parsedDistrict || "Medchal-Malkajgiri",
-            state: parsedState || "Telangana",
-            status: "Awaiting Rescue",
-            timestamp: new Date().toLocaleTimeString(),
-            severity: "CRITICAL",
-            batteryLevel: batteryLevel,
-            network_status: navigator.onLine ? "Online" : "Offline (Cached Local)"
-          };
-
-          if (navigator.onLine) {
-            socket.emit('sos_alert', sosData);
-            try {
-              await axios.post('http://127.0.0.1:5001/api/sos', sosData);
-            } catch(apiErr) {
-              console.error("API /api/sos failed", apiErr);
-            }
-          }
-          
-          await saveOfflineSOS(sosData as any);
-          setOneTapStatus("SOS Beacon Transmitted! Emergency Responders Notified.");
-          setTimeout(() => setOneTapStatus(null), 5000);
-        },
-        (err) => {
-          alert("Cannot acquire precise GPS lock for 1-Tap SOS. Ensure location permissions are granted.");
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } catch (criticalErr) {
-      console.error("Critical error in handleOneTapSOS:", criticalErr);
-      alert("An unexpected error occurred while transmitting the SOS signal. Please try again.");
-    }
-  };
 
   // Search autocomplete handler
   useEffect(() => {
@@ -245,21 +161,6 @@ export default function CitizenSOS({ onSubmitSOS, myBeacons, blackoutActive, onL
       {/* Section 1: Location & Coordinates (1-Tap SOS Top) */}
       <div className="bg-[#0d1425] border border-white/5 rounded-2xl p-6 shadow-glass relative">
         
-        <button 
-          type="button" 
-          onClick={handleOneTapSOS}
-          className="w-full mb-6 bg-red-600 hover:bg-red-700 text-white font-black text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.6)] animate-pulse flex items-center justify-center gap-3 transition-all active:scale-95"
-        >
-          <AlertTriangle size={24} />
-          1-TAP INSTANT SOS
-        </button>
-        
-        {oneTapStatus && (
-          <div className="mb-6 p-3 bg-red-500/20 border border-red-500 text-red-200 text-center font-bold rounded-lg animate-pulse">
-            {oneTapStatus}
-          </div>
-        )}
-
         <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
           <h4 className="font-heading font-extrabold text-[13.5px] text-white flex items-center gap-2">
             <ClipboardCheck size={16} className="text-safeGreen" /> Report Emergency Distress Signal

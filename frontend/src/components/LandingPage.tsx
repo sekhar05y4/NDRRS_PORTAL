@@ -212,7 +212,7 @@ export default function LandingPage({ hubs, beacons, geofences, blackoutActive, 
               dragging={true}
               attributionControl={false}
               className={`w-full h-full ${blackoutActive ? 'blackout-grayscale' : ''}`}
-              style={{ zIndex: 1, pointerEvents: 'auto' }}
+              style={{ zIndex: 1, pointerEvents: 'auto', height: '100%', width: '100%', minHeight: '400px' }}
             >
               <MapInitializer />
               {activeCitizenCoords && <ChangeView center={activeCitizenCoords} />}
