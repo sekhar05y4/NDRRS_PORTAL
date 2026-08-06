@@ -215,7 +215,14 @@ export default function LandingPage({ hubs, beacons, geofences, blackoutActive, 
               style={{ zIndex: 1, pointerEvents: 'auto', height: '100%', width: '100%', minHeight: '400px' }}
             >
               <MapInitializer />
-              {activeCitizenCoords && <ChangeView center={activeCitizenCoords} />}
+              {activeCitizenCoords && (
+                <>
+                  <ChangeView center={activeCitizenCoords} />
+                  <Marker position={activeCitizenCoords} icon={createPulsatingMarker()}>
+                    <Tooltip permanent direction="top">Your Live GPS Lock</Tooltip>
+                  </Marker>
+                </>
+              )}
               
               {/* Drawn Geofence Polygons */}
               {geofences.map(gf => (
